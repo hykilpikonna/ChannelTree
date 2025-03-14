@@ -1,0 +1,35 @@
+html {
+    margin: 0;
+    font-family: Quicksand,Inter,Microsoft YaHei,-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,Avenir,Helvetica,Arial,sans-serif;
+    background: #242424;
+    width: 100%;
+    height: 100%;
+    line-height: 1.8;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 50px auto;
+    padding: 0.5rem 2rem 0;
+    border-radius: 1rem 1rem 0 0;
+    box-sizing: border-box !important;
+    background-color: rgba(0 0 0 / 30%);
+    color: white;
+    min-height: 100%;
+    max-width: 600px;
+}
+
+a {
+    color: pink;
+    text-decoration: none;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', Quicksand,Inter,Microsoft YaHei,-apple-system,BlinkMacSystemFont,Segoe UI,system-ui,Avenir,Helvetica,Arial,sans-serif;
+    background-color: rgba(255 255 255 / 10%);
+    padding: 3px 6px;
+    border-radius: 5px;
+}
