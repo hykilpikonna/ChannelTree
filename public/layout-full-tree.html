@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌲 TGCN 频道树</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body {
+      max-width: unset;
+      overflow: scroll;
+      white-space: nowrap;
+      width: max-content;
+      padding-bottom: 200px;
+    }
+
+    .l0 { --color: #ffaeae; }
+    .l1 { --color: #ffd7ae; }
+    .l2 { --color: #d5ffae; }
+    .l3 { --color: #aeffdd; }
+    .l4 { --color: #aebeff; }
+    .l5 { --color: #edaeff; }
+    /* Repeat */
+    .l6 { --color: #ffaeae; }
+    .l7 { --color: #ffd7ae; }
+    .l8 { --color: #d5ffae; }
+    .l9 { --color: #aeffdd; }
+    .l10 { --color: #aebeff; }
+    .l11 { --color: #edaeff; }
+
+    .container {
+      padding-left: 1.5em;
+      position: relative;
+    }
+
+    .container:not(.l0):not(:last-child):before {
+      content: "";
+      position: absolute;
+      left: -1.5em;
+      top: -0.8rem;
+      bottom: 0.8rem;
+      opacity: 0.5;
+      border-left: 1px solid var(--color);
+    }
+
+    .tree {
+      margin-left: -0.5rem;
+      position: relative;
+      display: block;
+    }
+
+    .tree:not(.l0):before {
+      content: "";
+      position: absolute;
+      left: -1em;
+      top: -0.8rem;
+      bottom: 0.8rem;
+      opacity: 0.5;
+      border-left: 1px solid var(--color);
+      border-bottom: 1px solid var(--color);
+      width: 1rem;
+    }
+
+    .tree:first-child:before {
+      top: 0;
+    }
+
+    .tree:last-of-type:before {
+      border-radius: 0 0 0 10px;
+    }
+
+    a {
+      text-decoration: none;
+      color: var(--color);
+    }
+
+    .title {
+      margin-bottom: 1.5em;
+    }
+
+    .title > h1 {
+      margin-bottom: 0;
+    }
+
+    .title > span {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+<div class="title">
+  <h1>TGCN 频道树!</h1>
+  <span>植树节快乐哦，感谢大家一起种树 qwq</span>
+</div>
+{{CONTENT}}
+</body>
+</html>
