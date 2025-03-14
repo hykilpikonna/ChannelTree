@@ -20,7 +20,7 @@ https://tree.aza.moe
 
 if __name__ == '__main__':
     BOT_TOKEN = CONFIG["token"]
-    
+
     bot = Application.builder().token(BOT_TOKEN).build()
 
     # Add handlers
