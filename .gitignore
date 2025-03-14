@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 *.iml
 config.toml
+public/index.html

@@ -27,9 +27,9 @@ def dfs(channel: str):
     return out
 
 
-def gen_tree():
+def gen_tree(d: Path = src / "public"):
     of = dfs("hykilp")
-    write(src / "public/index.html", (src / "public/layout-full-tree.html").read_text()
+    write(d / "index.html", (src / "public/layout-full-tree.html").read_text()
           .replace("{{CONTENT}}", of))
 
 
