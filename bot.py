@@ -41,9 +41,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def channel_html(channel: str):
-    if (channels_dir / f"{channel}.html").exists():
-        return (channels_dir / f"{channel}.html").read_text()
-    return requests.get(f"https://t.me/{channel}").text
+    ouf = (channels_dir / f"{channel}.html")
+    if ouf.exists():
+        return ouf.read_text()
+    t = requests.get(f"https://t.me/{channel}").text
+    ouf.write_text(t)
+    return t
 
 
 async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
