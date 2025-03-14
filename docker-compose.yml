@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: tgtree-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cat
+      POSTGRES_PASSWORD: meow
+      POSTGRES_DB: tgtree
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - tgtree-db:/var/lib/postgresql/data
+
+volumes:
+  tgtree-db:
