@@ -64,3 +64,10 @@
 ![](docs/bot.png)
 
 </details>
+
+## 统计分析
+
+感谢 Ciel 做的一些中心性和影响力的分析，感兴趣可以去这里读读: https://t.me/var_log_ciel/831
+
+（之后还会有更多分析的内容会放在这里 qwq）
+
