@@ -9,7 +9,7 @@
 
 可以在 https://tree.aza.moe 查看最终的完整频道树，或者从[树根](https://tree.aza.moe/c/hykilp)开始跟随树杈🔗探索频道树。
 
-这个仓库里是「TGCN 植树机器人」和网页服务器的源码，以及频道树的数据备份。
+这个仓库里是「🌲TGCN 植树机器人🌲」和网页服务器的源码，以及频道树的数据备份。
 
 ## 颁奖（？）
 
@@ -41,7 +41,7 @@
 「奶酪基岩饼干」
 
 ~~**名字听起来最圆圆的让人想 ruarua 的频道**: [@catttballl](https://t.me/catttballl)~~  
-「Rua~rua~猫猫球」🐈
+「Rua\~rua\~猫猫球」🐈
 
 <img src="docs/deepseek-food-selection.png" width="400px" />
 
