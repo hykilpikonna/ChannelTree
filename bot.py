@@ -38,6 +38,23 @@ user_states: dict[int, dict] = {}
 treehole_rate_limit: dict[int, float] = {}
 TREEHOLE_COOLDOWN = 30  # seconds
 
+# Animal emojis for anonymous tree hole identities
+ANIMAL_EMOJIS = [
+    "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
+    "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦅", "🦆",
+    "🦉", "🦇", "🐺", "🐗", "🐴", "🦄", "🐝", "🐛", "🦋", "🐌",
+    "🐚", "🐞", "🐫", "🦒", "🐘", "🦏", "🦛", "🐪", "🦖", "🐳",
+    "🐬", "🐠", "🐙", "🦐", "🦑", "🦥", "🦚", "🦜", "🦩", "🐿️",
+    "🦔", "🦃", "🦢", "🦫", "🦦", "🦨", "🦝", "🐋", "🦈", "🦤",
+    "🍇", "🍈", "🍉", "🍊", "🍋", "🍌", "🍍", "🥭", "🍎", "🍏", 
+    "🍐", "🍑", "🍒", "🍓", "🫐", "🥝", "🍅", "🫒", "🥥",
+]
+
+
+def anon_name(user_id: int) -> str:
+    """Generate a consistent anonymous name for a user based on their ID."""
+    return ANIMAL_EMOJIS[user_id % len(ANIMAL_EMOJIS)]
+
 
 def user_info(update: Update):
     return (f"{update.message.from_user.id} {update.message.from_user.username or ''} "
@@ -106,9 +123,9 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🕳️ 树洞", callback_data=f"th:{channel}")],
         ])
         return await update.message.reply_html(f"""
-今天是植树节，想试试和大家一起种一颗 tgcn 频道树 🌳 qwq
+又是一年一度的植树节了！想和大家一起再种一颗 tgcn 频道树 🌳 qwq （还有树洞功能可以玩哦~）
 
-这里是 {info.title}，是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层哦~
+这里是 {info.title}，是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~
 
 （如果你也有公开频道，想成为这个频道的树叶的话，就点击下面的「成为树叶」吧！ &gt; &lt;） <a href="https://t.me/iv?url={url_enc}&rhash=d96b84e483dc30">\u200e</a>
 """.strip(), reply_markup=leaf_btn)
@@ -294,9 +311,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
 
         try:
+            name = anon_name(user_id)
             await context.bot.send_message(
                 chat_id=owner_id,
-                text=f"🕳️ 树洞消息\n\n有人匿名对你的频道 @{channel} 说：\n\n{update.message.text}",
+                text=f"🕳️ 树洞消息\n\n匿名{name}对你的频道 @{channel} 说：\n\n{update.message.text}",
                 reply_markup=reply_btn
             )
             await update.message.reply_text("✅ 消息已匿名发送~")
