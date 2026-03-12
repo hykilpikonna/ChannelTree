@@ -7,7 +7,7 @@ import bot
 import db
 import gentree
 
-src = Path(__file__).parent
+src = Path(__file__).parent.parent
 
 if __name__ == '__main__':
     # Delete dist if already exists, and copy public to dist

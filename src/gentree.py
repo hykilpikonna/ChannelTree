@@ -6,7 +6,7 @@ from hypy_utils import write
 import db
 
 
-src = Path(__file__).parent
+src = Path(__file__).parent.parent
 
 
 def indent(string: str, level: int):
@@ -28,7 +28,7 @@ def dfs(channel: str):
 
 
 def gen_tree(d: Path = src / "public"):
-    of = dfs("hykilp")
+    of = dfs("azaneko")
     write(d / "index.html", (src / "public/layout-full-tree.html").read_text('utf-8')
           .replace("{{CONTENT}}", of))
 
