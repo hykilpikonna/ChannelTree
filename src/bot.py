@@ -416,7 +416,7 @@ async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"> 🌿 Registering channel {channel} with parent {parent}.")
         height = db.register(channel, title, parent, owner_id=uid)
         await query.answer("✅ 验证成功！", show_alert=False)
-        await query.message.reply_text(f"频道 {channel} 上树成功！把下面这条转发到频道里吧~")
+        await query.message.reply_text(f"频道 {channel} 上树成功！把下面这条转发到频道里吧~（以及不要忘记把验证码删掉哦）")
         await query.message.reply_html(
             shareable_message(channel, title, f"是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~"),
             reply_markup=channel_buttons(channel))
