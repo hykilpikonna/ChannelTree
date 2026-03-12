@@ -78,6 +78,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             channel = payload[3:]
             return await handle_treehole(update, uid, channel)
 
+        if payload.startswith("leaf_"):
+            channel = payload[5:]
+            return await handle_leaf(update, uid, channel)
+
     await update.message.reply_text("🌳🌳🌳")
 
 
@@ -93,9 +97,8 @@ def channel_html(channel: str):
 def channel_buttons(channel: str) -> InlineKeyboardMarkup:
     """Build the inline keyboard buttons for a channel post. All buttons use URL
     deep-links so the keyboard is preserved when the message is forwarded."""
-    leaf_text = urllib.parse.quote(f"/leaf {channel} 你的频道@名")
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🌿 成为树叶", url=f"https://t.me/{BOT_NAME}?text={leaf_text}")],
+        [InlineKeyboardButton("🌿 成为树叶", url=f"https://t.me/{BOT_NAME}?start=leaf_{channel}")],
         [InlineKeyboardButton("💧 浇水", url=f"https://t.me/{BOT_NAME}?start=water_{channel}"),
          InlineKeyboardButton("🕳️ 树洞", url=f"https://t.me/{BOT_NAME}?start=th_{channel}")],
     ])
@@ -143,65 +146,21 @@ async def init(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /leaf — deprecated, redirect to button flow."""
     if update.message.chat.type != "private":
         return
+    await update.message.reply_text("/leaf 指令已经不再使用了哦~ 请点击频道消息上的「🌿 成为树叶」按钮吧！")
 
-    logger.info(f"/leaf from {user_info(update)}: {update.message.text}")
 
-    args, uid = context.args, update.message.from_user.id
-    if len(args) != 2:
-        logger.info(f"> Invalid args.")
-        return await update.message.reply_text("用法是 /leaf <上级频道名> <你的频道名> 哦~")
-
-    parent, channel = args
-    parent, channel = parent.strip("<>{} @"), channel.strip("<>{} @")
-    sha = gen_sha(channel, uid, parent)
-
-    # Check if channel only contains 0-9, a-z, A-Z and _
-    if not re.match(r"^[0-9a-zA-Z_]+$", channel):
-        logger.info(f"> Invalid channel name.")
-        return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，以及需要输入频道的 @用户名，不是显示名哦~")
+async def handle_leaf(update: Update, user_id: int, parent: str):
+    """Handle the 成为树叶 action via deep-link — ask for the user's channel name."""
+    logger.info(f"🌿 Leaf request from {user_id} for parent {parent}")
 
     if not db.channel_info(parent):
-        logger.info(f"> Parent channel not found.")
         return await update.message.reply_text("上级频道还不在树上... 是不是打错了 qwq")
 
-    # 检查在不在树上
-    if db.channel_info(channel):
-        logger.info(f"> Channel already exists.")
-        return await update.message.reply_text(f"这个频道已经在树上了哦~ https://tree.aza.moe/c/{channel}")
-
-    # 检查验证码
-    text = channel_html(channel)
-    if 'noindex, nofollow' in text:
-        logger.info(f"> Channel noindex, nofollow.")
-        return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，以及需要输入频道的 @用户名，不是显示名哦~")
-
-    info = utils.extract_meta_tags(text)
-    if sha in text:
-        logger.info(f"> 🌿 Registering channel {channel} with parent {parent}.")
-        height = db.register(channel, info.title, parent, owner_id=uid)
-        await update.message.reply_text(f"""频道 {channel} 上树成功！把下面这条转发到频道里吧~""".strip())
-        return await update.message.reply_html(
-            shareable_message(channel, info.title, f"是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~"),
-            reply_markup=channel_buttons(channel))
-
-    if sha not in validating:
-        logger.info(f"> Channel not validated, asking for validation.")
-        verify_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ 添加好了", callback_data=f"verify:{channel}:{parent}")],
-        ])
-        await update.message.reply_text(f"""
-好耶！
-
-不过上树之前，为了防止被滥用，需要先验证一下你是 {channel} 的管理员...
-
-请编辑频道简介加入验证码 {sha} 再点击下面的「添加好了」吧~（加在哪里都可以的 > < 验证完就可以删掉）
-""".strip(), reply_markup=verify_btn)
-        validating.add(sha)
-    else:
-        logger.info(f"> Channel not validated, asking again for validation.")
-        return await update.message.reply_text("（看了一下好像频道信息还没有更新的样子... 确定加上了吗？再试试吧）")
+    user_states[user_id] = {"action": "leaf", "parent": parent}
+    await update.message.reply_html(f"🌿 <b>成为树叶</b>\n\n你想让哪个频道成为 @{parent} 的树叶呢？（请发送你的频道 @用户名）")
 
 
 async def handle_water(update: Update, user_id: int, channel: str):
@@ -315,7 +274,50 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not state:
         return
 
-    if state["action"] == "treehole":
+    if state["action"] == "leaf":
+        parent = state["parent"]
+        del user_states[user_id]
+
+        channel = update.message.text.strip().strip("<>{} @")
+        uid = user_id
+
+        # Validate channel name
+        if not re.match(r"^[0-9a-zA-Z_]+$", channel):
+            return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，以及需要输入频道的 @用户名，不是显示名哦~")
+
+        if db.channel_info(channel):
+            return await update.message.reply_text(f"这个频道已经在树上了哦~ https://tree.aza.moe/c/{channel}")
+
+        sha = gen_sha(channel, uid, parent)
+
+        # Check channel
+        text = channel_html(channel)
+        if 'noindex, nofollow' in text:
+            return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，以及需要输入频道的 @用户名，不是显示名哦~")
+
+        info = utils.extract_meta_tags(text)
+        if sha in text:
+            title = info.title or channel
+            logger.info(f"> 🌿 Registering channel {channel} with parent {parent}.")
+            height = db.register(channel, title, parent, owner_id=uid)
+            await update.message.reply_text(f"频道 {channel} 上树成功！把下面这条转发到频道里吧~")
+            return await update.message.reply_html(
+                shareable_message(channel, title, f"是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~"),
+                reply_markup=channel_buttons(channel))
+
+        verify_btn = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ 添加好了", callback_data=f"verify:{channel}:{parent}")],
+        ])
+        await update.message.reply_text(f"""
+好耶！
+
+不过上树之前，为了防止被滥用，需要先验证一下你是 {channel} 的管理员...
+
+请编辑频道简介加入验证码 {sha} 再点击下面的「添加好了」吧~（加在哪里都可以的 > < 验证完就可以删掉）
+""".strip(), reply_markup=verify_btn)
+        validating.add(sha)
+
+    elif state["action"] == "treehole":
         channel = state["channel"]
         del user_states[user_id]
 
@@ -499,7 +501,7 @@ def channel_info(channel: str):
         <ul>
             {"".join(f'<li><a href="https://t.me/{child.username}">@{child.username}</a> (<a href="/c/{child.username}">🔗</a>) - {child.name}</li>' for child in info.children)}
         </ul>""" if info.children else "这个频道是树叶哦~"}
-        <p class="note">（如果你也有公开频道，想成为这个频道的树叶的话，就去给 <a href="https://t.me/tgtreebot">@tgtreebot</a> 发送 <code>/leaf {channel} {{你的频道名}}</code> 吧! &gt; &lt;）</p>
+        <p class="note">（如果你也有公开频道，想成为这个频道的树叶的话，就点击频道消息上的「🌿 成为树叶」按钮吧! &gt; &lt;）</p>
     """)
 
 
