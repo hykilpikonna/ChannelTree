@@ -187,13 +187,16 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if sha not in validating:
         logger.info(f"> Channel not validated, asking for validation.")
+        verify_btn = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ 添加好了", callback_data=f"verify:{channel}:{parent}")],
+        ])
         await update.message.reply_text(f"""
 好耶！
 
 不过上树之前，为了防止被滥用，需要先验证一下你是 {channel} 的管理员...
 
-请编辑频道简介加入验证码 {sha} 再重新执行这条指令吧~（加在哪里都可以的 > < 验证完就可以删掉）
-""".strip())
+请编辑频道简介加入验证码 {sha} 再点击下面的「添加好了」吧~（加在哪里都可以的 > < 验证完就可以删掉）
+""".strip(), reply_markup=verify_btn)
         validating.add(sha)
     else:
         logger.info(f"> Channel not validated, asking again for validation.")
@@ -387,12 +390,47 @@ async def walkback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("欢迎回到树洞！你现在可以重新收到树洞消息了~")
 
 
+async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the 添加好了 button — re-check verification code."""
+    query = update.callback_query
+    data = query.data
+
+    # Format: verify:{channel}:{parent}
+    parts = data.split(":", 2)
+    if len(parts) != 3:
+        return
+
+    _, channel, parent = parts
+    uid = query.from_user.id
+    sha = gen_sha(channel, uid, parent)
+
+    # Delete cached HTML to force re-fetch
+    cached = channels_dir / f"{channel}.html"
+    if cached.exists():
+        cached.unlink()
+
+    text = channel_html(channel)
+    if sha in text:
+        info = utils.extract_meta_tags(text)
+        title = info.title or channel
+        logger.info(f"> 🌿 Registering channel {channel} with parent {parent}.")
+        height = db.register(channel, title, parent, owner_id=uid)
+        await query.answer("✅ 验证成功！", show_alert=False)
+        await query.message.reply_text(f"频道 {channel} 上树成功！把下面这条转发到频道里吧~")
+        await query.message.reply_html(
+            shareable_message(channel, title, f"是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~"),
+            reply_markup=channel_buttons(channel))
+    else:
+        await query.answer("看了一下好像频道信息还没有更新的样子... 确定加上了吗？再试试吧", show_alert=True)
+
+
 # Add handlers
 bot.add_handler(CommandHandler("start", start))
 bot.add_handler(CommandHandler("init", init))
 bot.add_handler(CommandHandler("leaf", plant))
 bot.add_handler(CommandHandler("walkaway", walkaway))
 bot.add_handler(CommandHandler("walkback", walkback))
+bot.add_handler(CallbackQueryHandler(verify_callback, pattern=r"^verify:"))
 bot.add_handler(CallbackQueryHandler(reply_callback, pattern=r"^reply:"))
 bot.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block:"))
 bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
