@@ -160,7 +160,7 @@ async def handle_leaf(update: Update, user_id: int, parent: str):
         return await update.message.reply_text("上级频道还不在树上... 是不是打错了 qwq")
 
     user_states[user_id] = {"action": "leaf", "parent": parent}
-    await update.message.reply_html(f"🌿 <b>成为树叶</b>\n\n你想让哪个频道成为 @{parent} 的树叶呢？（请发送你的频道 @用户名）")
+    await update.message.reply_html(f"🌿 <b>成为树叶</b>\n\n你想让哪个频道成为 @{parent} 的树叶呢？（请发送你的频道的 @用户名）")
 
 
 async def handle_water(update: Update, user_id: int, channel: str):
