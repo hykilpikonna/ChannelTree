@@ -54,6 +54,7 @@ dependencies = [
     { name = "hypy-utils" },
     { name = "peewee" },
     { name = "playhouse" },
+    { name = "psycopg2" },
     { name = "python-telegram-bot" },
     { name = "requests" },
     { name = "starlette" },
@@ -66,6 +67,7 @@ requires-dist = [
     { name = "hypy-utils", specifier = ">=1.0.29" },
     { name = "peewee", specifier = ">=4.0.1" },
     { name = "playhouse", specifier = ">=0.1.0" },
+    { name = "psycopg2", specifier = ">=2.9.11" },
     { name = "python-telegram-bot", specifier = ">=22.6" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "starlette", specifier = ">=0.52.1" },
@@ -221,6 +223,16 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0a/4e/897a720fa723d84964f0f466f1f163c93c8c9a39d4af74cb830f93a18f24/playhouse-0.1.0.tar.gz", hash = "sha256:98e375b2ec649ad454e3af91c6cb243a37709250062a53559de3ec54044c8a28", size = 866, upload-time = "2024-11-10T13:02:39.776Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/22/2a61be98f9dace4604aec97eb6cae085354f04babb91de3e5b0fc3b6cc5a/playhouse-0.1.0-py3-none-any.whl", hash = "sha256:ba6b851f8bba7cf083b0289f64729b717f4e8bd552d2ba3dfc6fc1f76fdd40a1", size = 1080, upload-time = "2024-11-10T13:02:37.999Z" },
+]
+
+[[package]]
+name = "psycopg2"
+version = "2.9.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/8d/9d12bc8677c24dad342ec777529bce705b3e785fa05d85122b5502b9ab55/psycopg2-2.9.11.tar.gz", hash = "sha256:964d31caf728e217c697ff77ea69c2ba0865fa41ec20bb00f0977e62fdcc52e3", size = 379598, upload-time = "2025-10-10T11:14:46.075Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/5a/18c8cb13fc6908dc41a483d2c14d927a7a3f29883748747e8cb625da6587/psycopg2-2.9.11-cp313-cp313-win_amd64.whl", hash = "sha256:8dc379166b5b7d5ea66dcebf433011dfc51a7bb8a5fc12367fa05668e5fc53c8", size = 2714048, upload-time = "2025-10-10T11:10:19.816Z" },
+    { url = "https://files.pythonhosted.org/packages/47/08/737aa39c78d705a7ce58248d00eeba0e9fc36be488f9b672b88736fbb1f7/psycopg2-2.9.11-cp314-cp314-win_amd64.whl", hash = "sha256:f10a48acba5fe6e312b891f290b4d2ca595fc9a06850fe53320beac353575578", size = 2803738, upload-time = "2025-10-10T11:10:23.196Z" },
 ]
 
 [[package]]

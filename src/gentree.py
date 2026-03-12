@@ -29,7 +29,7 @@ def dfs(channel: str):
 
 def gen_tree(d: Path = src / "public"):
     of = dfs("hykilp")
-    write(d / "index.html", (src / "public/layout-full-tree.html").read_text()
+    write(d / "index.html", (src / "public/layout-full-tree.html").read_text('utf-8')
           .replace("{{CONTENT}}", of))
 
 

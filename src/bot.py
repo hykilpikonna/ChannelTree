@@ -69,9 +69,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def channel_html(channel: str):
     ouf = (channels_dir / f"{channel}.html")
     if ouf.exists():
-        return ouf.read_text()
+        return ouf.read_text('utf-8')
     t = requests.get(f"https://t.me/{channel}").text
-    ouf.write_text(t)
+    ouf.write_text(t, 'utf-8')
     return t
 
 
@@ -431,7 +431,7 @@ async def shutdown_event():
     await bot.shutdown()
 
 
-layout_html = (Path(__file__).parent / "public" / "layout.html").read_text()
+layout_html = (Path(__file__).parent.parent / "public" / "layout.html").read_text('utf-8')
 fmt_html = lambda x: layout_html.replace("{{CONTENT}}", x).replace("\n", "")
 
 

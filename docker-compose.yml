@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:latest
@@ -10,9 +8,9 @@ services:
       POSTGRES_PASSWORD: meow
       POSTGRES_DB: tgtree
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5444:5432"
     volumes:
-      - tgtree-db:/var/lib/postgresql/data
+      - tgtree-db:/var/lib/postgresql
 
 volumes:
   tgtree-db:
