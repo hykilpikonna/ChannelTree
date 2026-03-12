@@ -127,7 +127,7 @@ def shareable_message(channel: str, title: str, description: str) -> str:
     """Build the shareable HTML message for a channel post."""
     url_enc = urllib.parse.quote_plus(f"https://tree.aza.moe/c/{channel}")
     return f"""
-又到了植树节！想和大家一起再种一颗 tgcn 频道树🌳！（这次有更多功能可以玩哦~）
+又到了植树节！想和大家一起再种一颗 <a href="https://tree.aza.moe">tgcn 频道树🌳</a>！（这次有更多功能可以玩哦~）
 
 这里是 {title}，{description}
 
