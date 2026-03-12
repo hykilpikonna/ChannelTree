@@ -63,6 +63,20 @@ def user_info(update: Update):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"/start from {user_info(update)}")
+
+    # Handle deep-link payloads (e.g. /start water_channelname)
+    if context.args:
+        payload = context.args[0]
+        uid = update.message.from_user.id
+
+        if payload.startswith("water_"):
+            channel = payload[6:]
+            return await handle_water(update, uid, channel)
+
+        if payload.startswith("th_"):
+            channel = payload[3:]
+            return await handle_treehole(update, uid, channel)
+
     await update.message.reply_text("🌳🌳🌳")
 
 
@@ -71,17 +85,18 @@ def channel_html(channel: str):
     if ouf.exists():
         return ouf.read_text('utf-8')
     t = requests.get(f"https://t.me/{channel}").text
-    ouf.write_text(t, 'utf-8')
+    ouf.write_text(t, encoding='utf-8')
     return t
 
 
 def channel_buttons(channel: str) -> InlineKeyboardMarkup:
-    """Build the inline keyboard buttons for a channel post."""
-    leaf_text = urllib.parse.quote(f"/leaf {channel} ")
+    """Build the inline keyboard buttons for a channel post. All buttons use URL
+    deep-links so the keyboard is preserved when the message is forwarded."""
+    leaf_text = urllib.parse.quote(f"/leaf {channel} 你的频道@名")
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🌿 成为树叶", url=f"https://t.me/{BOT_NAME}?text={leaf_text}")],
-        [InlineKeyboardButton("💧 浇水", callback_data=f"water:{channel}")],
-        [InlineKeyboardButton("🕳️ 树洞", callback_data=f"th:{channel}")],
+        [InlineKeyboardButton("💧 浇水", url=f"https://t.me/{BOT_NAME}?start=water_{channel}"),
+         InlineKeyboardButton("🕳️ 树洞", url=f"https://t.me/{BOT_NAME}?start=th_{channel}")],
     ])
 
 
@@ -115,13 +130,14 @@ async def init(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("密码不对哦~")
 
     info = utils.extract_meta_tags(channel_html(channel))
+    title = info.title or channel
 
     logger.info(f"> 🌳 Initializing root channel {channel}.")
-    db.register(channel, info.title, owner_id=uid)
+    db.register(channel, title, owner_id=uid)
 
     await update.message.reply_text(f"🌳 根频道 @{channel} 创建成功！把下面这条转发到频道里吧~")
     return await update.message.reply_html(
-        shareable_message(channel, info.title, "是频道树的树根 🌳"),
+        shareable_message(channel, title, "是频道树的树根 🌳"),
         reply_markup=channel_buttons(channel))
 
 
@@ -184,68 +200,39 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("（看了一下好像频道信息还没有更新的样子... 确定加上了吗？再试试吧）")
 
 
-async def water_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the 浇水 (water/upvote) button press."""
-    query = update.callback_query
-    data = query.data
+async def handle_water(update: Update, user_id: int, channel: str):
+    """Handle the 浇水 (water/upvote) action via deep-link."""
+    logger.info(f"💧 Water from {user_id} for {channel}")
 
-    if not data.startswith("water:"):
-        return
-
-    channel = data[len("water:"):]
-    user_id = query.from_user.id
-
-    logger.info(f"💧 Water from {user_id} {query.from_user.username or ''} for {channel}")
-
-    # Check if the channel exists
     info = db.channel_info(channel)
     if not info:
-        return await query.answer("这个频道不在树上哦~", show_alert=False)
+        return await update.message.reply_text("这个频道不在树上哦~")
 
-    # Try to add the vote
     if db.add_vote(user_id, channel):
         votes = db.get_votes(channel)
-        await query.answer(f"💧 浇水成功！这个树枝已经被浇了 {votes} 次水~", show_alert=False)
+        await update.message.reply_text(f"💧 浇水成功！这个树枝已经被浇了 {votes} 次水~")
     else:
         votes = db.get_votes(channel)
-        await query.answer(f"你已经浇过水了哦~ 这个树枝已经被浇了 {votes} 次水~", show_alert=False)
+        await update.message.reply_text(f"你已经浇过水了哦~ 这个树枝已经被浇了 {votes} 次水~")
 
 
-async def treehole_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle the 树洞 button press — initiate anonymous messaging."""
-    query = update.callback_query
-    data = query.data
-
-    if not data.startswith("th:"):
-        return
-
-    channel = data[3:]
-    user_id = query.from_user.id
-
-    logger.info(f"🕳️ Tree hole from {user_id} {query.from_user.username or ''} for {channel}")
+async def handle_treehole(update: Update, user_id: int, channel: str):
+    """Handle the 树洞 action via deep-link."""
+    logger.info(f"🕳️ Tree hole from {user_id} for {channel}")
 
     # Check rate limit
     last_time = treehole_rate_limit.get(user_id, 0)
     if time.time() - last_time < TREEHOLE_COOLDOWN:
         remaining = int(TREEHOLE_COOLDOWN - (time.time() - last_time))
-        return await query.answer(f"发送太频繁了，请 {remaining} 秒后再试~", show_alert=True)
+        return await update.message.reply_text(f"发送太频繁了，请 {remaining} 秒后再试~")
 
     # Check if channel has an owner
     owner_id = db.get_channel_owner(channel)
     if not owner_id:
-        return await query.answer("这个频道还没有设置主人哦~", show_alert=False)
+        return await update.message.reply_text("这个频道还没有设置主人哦~")
 
-    # Try to DM the user
-    try:
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=f"🕳️ 树洞模式\n\n想对频道 @{channel} 的主人说什么呢？（发送文字消息即可，消息将会匿名发送）"
-        )
-        user_states[user_id] = {"action": "treehole", "channel": channel}
-        await query.answer("请查看 bot 的私聊~", show_alert=False)
-    except Exception as e:
-        logger.error(f"Failed to send treehole message: {e}")
-        await query.answer("请先私聊 bot 发送 /start 才能使用树洞功能哦~", show_alert=True)
+    user_states[user_id] = {"action": "treehole", "channel": channel}
+    await update.message.reply_text(f"🕳️ 树洞模式\n\n想对频道 @{channel} 的主人说什么呢？（发送文字消息即可，消息将会匿名发送）")
 
 
 async def reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -406,8 +393,6 @@ bot.add_handler(CommandHandler("init", init))
 bot.add_handler(CommandHandler("leaf", plant))
 bot.add_handler(CommandHandler("walkaway", walkaway))
 bot.add_handler(CommandHandler("walkback", walkback))
-bot.add_handler(CallbackQueryHandler(water_callback, pattern=r"^water:"))
-bot.add_handler(CallbackQueryHandler(treehole_callback, pattern=r"^th:"))
 bot.add_handler(CallbackQueryHandler(reply_callback, pattern=r"^reply:"))
 bot.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block:"))
 bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
