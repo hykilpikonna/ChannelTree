@@ -16,7 +16,9 @@ def indent(string: str, level: int):
 
 def dfs(channel: str):
     info = db.channel_info(channel)
-    out = f"""<span class="tree l{info.height}"><a href="https://t.me/{channel}">@{channel}</a> - {info.name}</span>\n"""
+    votes = db.get_votes(channel)
+    water = f' 💧{votes}' if votes else ''
+    out = f"""<span class="tree l{info.height}"><a href="https://t.me/{channel}">@{channel}</a> - {info.name}{water}</span>\n"""
     if not info.children:
         return out
 
@@ -37,5 +39,5 @@ if __name__ == '__main__':
     while True:
         print("Generating tree...")
         gen_tree()
-        print("Done! Sleeping for 60 seconds...")
-        time.sleep(60)
+        print("Done! Sleeping for 10 seconds...")
+        time.sleep(10)
