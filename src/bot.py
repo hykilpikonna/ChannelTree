@@ -1,3 +1,4 @@
+import html
 import re
 import time
 import tomllib
@@ -211,6 +212,11 @@ async def handle_water(update: Update, user_id: int, channel: str):
     if not info:
         return await update.message.reply_text("这个频道不在树上哦~")
 
+    # Block self-watering
+    owner_id = db.get_channel_owner(channel)
+    if owner_id == user_id:
+        return await update.message.reply_text("不能给自己的频道浇水哦~ 🥺")
+
     if db.add_vote(user_id, channel):
         votes = db.get_votes(channel)
         await update.message.reply_text(f"💧 浇水成功！这个树枝已经被浇了 {votes} 次水~")
@@ -223,19 +229,27 @@ async def handle_treehole(update: Update, user_id: int, channel: str):
     """Handle the 树洞 action via deep-link."""
     logger.info(f"🕳️ Tree hole from {user_id} for {channel}")
 
+    # Check if channel has an owner
+    owner_id = db.get_channel_owner(channel)
+    if not owner_id:
+        return await update.message.reply_text("这个频道还没有设置主人哦~")
+
+    # Block sending to oneself
+    if owner_id == user_id:
+        return await update.message.reply_text("不能给自己发树洞消息哦~ 🥺")
+
+    # Check if owner walked away
+    if db.is_treehole_opted_out(owner_id):
+        return await update.message.reply_text("树洞对面没有人的样子，过一会再试试吧！（对方关闭了树洞）")
+
     # Check rate limit
     last_time = treehole_rate_limit.get(user_id, 0)
     if time.time() - last_time < TREEHOLE_COOLDOWN:
         remaining = int(TREEHOLE_COOLDOWN - (time.time() - last_time))
         return await update.message.reply_text(f"发送太频繁了，请 {remaining} 秒后再试~")
 
-    # Check if channel has an owner
-    owner_id = db.get_channel_owner(channel)
-    if not owner_id:
-        return await update.message.reply_text("这个频道还没有设置主人哦~")
-
     user_states[user_id] = {"action": "treehole", "channel": channel}
-    await update.message.reply_text(f"🕳️ 树洞模式\n\n想对频道 @{channel} 的主人说什么呢？（发送文字消息即可，消息将会匿名发送）")
+    await update.message.reply_html(f"🕳️ <b>树洞模式</b>\n\n想对频道 @{channel} 的主人说什么呢？（发送文字消息即可，消息将会匿名发送）")
 
 
 async def reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -329,7 +343,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     chat_id=owner_id,
-                    text="树洞对面传来消息了！（其实是匿名消息功能啦）\n\n如果不想要听到树洞消息的话可以说 /walkaway"
+                    text="<b>树洞对面传来消息了！</b>（其实是匿名消息功能啦）\n\n如果不想要听到树洞消息的话可以说 /walkaway",
+                    parse_mode="HTML"
                 )
             except Exception:
                 pass
@@ -342,10 +357,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             name = anon_name(user_id)
+            escaped_text = html.escape(update.message.text)
             await context.bot.send_message(
                 chat_id=owner_id,
-                text=f"🕳️ 树洞消息\n\n匿名{name}对你的频道 @{channel} 说：\n\n{update.message.text}",
-                reply_markup=reply_btn
+                text=f"🕳️ <b>树洞消息</b>\n\n匿名{name}对你的频道 @{channel} 说：\n\n{escaped_text}",
+                reply_markup=reply_btn,
+                parse_mode="HTML"
             )
             await update.message.reply_text("✅ 消息已匿名发送~")
         except Exception:
@@ -357,9 +374,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         del user_states[user_id]
 
         try:
+            escaped_text = html.escape(update.message.text)
             await context.bot.send_message(
                 chat_id=sender_id,
-                text=f"💬 频道 @{channel} 的主人回复了你的树洞消息：\n\n{update.message.text}"
+                text=f"💬 <b>频道 @{channel} 的主人回复了你的树洞消息：</b>\n\n{escaped_text}",
+                parse_mode="HTML"
             )
             await update.message.reply_text("✅ 回复已发送~")
         except Exception:
