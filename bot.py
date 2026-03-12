@@ -9,8 +9,8 @@ from hypy_utils import ensure_dir
 from hypy_utils.logging_utils import setup_logger
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 import db
 import utils
@@ -90,13 +90,18 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         height = db.register(channel, info.title, parent)
         await update.message.reply_text(f"""频道 {channel} 上树成功！把下面这条转发到频道里吧~""".strip())
         url_enc = urllib.parse.quote_plus(f"https://tree.aza.moe/c/{channel}")
+        leaf_text = urllib.parse.quote(f"/leaf {channel} ")
+        leaf_btn = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🌿 成为树叶", url=f"https://t.me/{BOT_NAME}?text={leaf_text}")],
+            [InlineKeyboardButton("💧 浇水", callback_data=f"water:{channel}")],
+        ])
         return await update.message.reply_html(f"""
 今天是植树节，想试试和大家一起种一颗 tgcn 频道树 🌳 qwq
 
 这里是 {info.title}，是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层哦~
 
-（如果你也有公开频道，想成为这个频道的树叶的话，就去给 @tgtreebot 发送 <code>/leaf {channel} {{你的频道名}}</code> 吧！ &gt; &lt;） <a href="https://t.me/iv?url={url_enc}&rhash=d96b84e483dc30">\u200e</a>
-""".strip())
+（如果你也有公开频道，想成为这个频道的树叶的话，就点击下面的「成为树叶」吧！ &gt; &lt;） <a href="https://t.me/iv?url={url_enc}&rhash=d96b84e483dc30">\u200e</a>
+""".strip(), reply_markup=leaf_btn)
 
     if sha not in validating:
         logger.info(f"> Channel not validated, asking for validation.")
@@ -113,9 +118,37 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("（看了一下好像频道信息还没有更新的样子... 确定加上了吗？再试试吧）")
 
 
+async def water_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle the 浇水 (water/upvote) button press."""
+    query = update.callback_query
+    data = query.data
+
+    if not data.startswith("water:"):
+        return
+
+    channel = data[len("water:"):]
+    user_id = query.from_user.id
+
+    logger.info(f"💧 Water from {user_id} {query.from_user.username or ''} for {channel}")
+
+    # Check if the channel exists
+    info = db.channel_info(channel)
+    if not info:
+        return await query.answer("这个频道不在树上哦~", show_alert=False)
+
+    # Try to add the vote
+    if db.add_vote(user_id, channel):
+        votes = db.get_votes(channel)
+        await query.answer(f"💧 浇水成功！这个树枝已经被浇了 {votes} 次水~", show_alert=False)
+    else:
+        votes = db.get_votes(channel)
+        await query.answer(f"你已经浇过水了哦~ 这个树枝已经被浇了 {votes} 次水~", show_alert=False)
+
+
 # Add handlers
 bot.add_handler(CommandHandler("start", start))
 bot.add_handler(CommandHandler("leaf", plant))
+bot.add_handler(CallbackQueryHandler(water_callback, pattern=r"^water:"))
 
 
 @app.on_event("startup")

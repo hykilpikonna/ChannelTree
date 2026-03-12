@@ -1,4 +1,4 @@
-from peewee import Model, CharField, ForeignKeyField, IntegerField, PostgresqlDatabase
+from peewee import Model, CharField, ForeignKeyField, IntegerField, BigIntegerField, CompositeKey, PostgresqlDatabase
 
 from utils import CONFIG
 
@@ -19,8 +19,16 @@ class Channel(BaseModel):
     height = IntegerField(default=0)  # Tree height (depth)
 
 
+class Vote(BaseModel):
+    user_id = BigIntegerField()  # Telegram user ID
+    channel = ForeignKeyField(Channel, backref='votes', on_delete='CASCADE', field='username')
+
+    class Meta:
+        primary_key = CompositeKey('user_id', 'channel')
+
+
 with db:
-    db.create_tables([Channel])
+    db.create_tables([Channel, Vote])
 
 
 def channel_info(username: str) -> Channel | None:
@@ -45,6 +53,27 @@ def register(username: str, name: str, parent_username: str = None):
 
     Channel.create(username=username, name=name, parent=parent, height=height)
     return height
+
+
+def add_vote(user_id: int, channel_username: str) -> bool:
+    """Add a vote for a channel. Returns True if the vote was added, False if already voted."""
+    try:
+        Vote.create(user_id=user_id, channel=channel_username)
+        return True
+    except Exception:
+        return False
+
+
+def get_votes(channel_username: str) -> int:
+    """Get the total number of votes for a channel."""
+    return Vote.select().where(Vote.channel == channel_username).count()
+
+
+def has_voted(user_id: int, channel_username: str) -> bool:
+    """Check if a user has already voted for a channel."""
+    return Vote.select().where(
+        (Vote.user_id == user_id) & (Vote.channel == channel_username)
+    ).exists()
 
 
 if __name__ == '__main__':
