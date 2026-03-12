@@ -18,6 +18,7 @@ class Channel(BaseModel):
     parent = ForeignKeyField('self', null=True, backref='children', on_delete='CASCADE', field='username')
     height = IntegerField(default=0)  # Tree height (depth)
     owner_id = BigIntegerField(null=True)  # Telegram user ID of the channel owner
+    hidden = BooleanField(default=False)  # Whether the channel is hidden from the tree
 
 
 class Vote(BaseModel):
@@ -58,6 +59,35 @@ def channel_info(username: str) -> Channel | None:
         return Channel.get(Channel.username == username)
     except Channel.DoesNotExist:
         return None
+
+
+def remove_channel(username: str) -> bool:
+    """Remove a channel and its descendants (via CASCADE)."""
+    try:
+        ch = Channel.get(Channel.username == username)
+        ch.delete_instance(recursive=True)
+        return True
+    except Channel.DoesNotExist:
+        return False
+
+
+def set_hidden(username: str, hidden: bool) -> bool:
+    """Toggle the hidden status of a channel."""
+    try:
+        ch = Channel.get(Channel.username == username)
+        ch.hidden = hidden
+        ch.save()
+        return True
+    except Channel.DoesNotExist:
+        return False
+
+
+def get_all_channels(include_hidden: bool = True) -> list[Channel]:
+    """Get all registered channels."""
+    query = Channel.select()
+    if not include_hidden:
+        query = query.where(Channel.hidden == False)
+    return list(query.order_by(Channel.height, Channel.username))
 
 
 def register(username: str, name: str, parent_username: str = None, owner_id: int = None):

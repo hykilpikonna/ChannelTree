@@ -6,10 +6,10 @@ import urllib.parse
 from pathlib import Path
 
 import requests
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException, Body, Header
 from hypy_utils import ensure_dir
 from hypy_utils.logging_utils import setup_logger
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.staticfiles import StaticFiles
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
@@ -543,6 +543,37 @@ def tree_to_dict(channel: str) -> dict | None:
 @app.get("/api/tree")
 def api_tree():
     return tree_to_dict("azaneko")
+
+
+@app.get("/api/admin/channels")
+def api_admin_channels(x_admin_password: str = Header(None)):
+    if x_admin_password not in CONFIG.get("admin-passwords", [CONFIG.get("init-password")]):
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+
+    channels = db.get_all_channels()
+    return [{"username": c.username, "name": c.name, "parent": c.parent_id, "hidden": c.hidden} for c in channels]
+
+
+@app.post("/api/admin/channels/{username}/hide")
+def api_hide_channel(username: str, hidden: bool = Body(..., embed=True), x_admin_password: str = Header(None)):
+    if x_admin_password not in CONFIG.get("admin-passwords", [CONFIG.get("init-password")]):
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+
+    if db.set_hidden(username, hidden):
+        return {"success": True}
+    else:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+
+@app.delete("/api/admin/channels/{username}")
+def api_delete_channel(username: str, x_admin_password: str = Header(None)):
+    if x_admin_password not in CONFIG.get("admin-passwords", [CONFIG.get("init-password")]):
+        raise HTTPException(status_code=403, detail="Invalid admin password")
+
+    if db.remove_channel(username):
+        return {"success": True}
+    else:
+        raise HTTPException(status_code=404, detail="Channel not found")
 
 
 @app.get("/c/{channel}", response_class=HTMLResponse)
