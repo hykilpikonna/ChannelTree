@@ -1,7 +1,6 @@
 import html
 import re
 import time
-import tomllib
 import urllib.parse
 from pathlib import Path
 
@@ -17,7 +16,6 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 import db
 import utils
 from utils import gen_sha, CONFIG
-
 
 BOT_TOKEN = CONFIG["token"]
 BOT_NAME = CONFIG["name"]
@@ -145,7 +143,7 @@ async def init(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=channel_buttons(channel))
 
 
-async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def plant(update: Update):
     """Handle /leaf — deprecated, redirect to button flow."""
     if update.message.chat.type != "private":
         return
@@ -208,7 +206,8 @@ async def handle_treehole(update: Update, user_id: int, channel: str):
         return await update.message.reply_text(f"发送太频繁了，请 {remaining} 秒后再试~")
 
     user_states[user_id] = {"action": "treehole", "channel": channel}
-    await update.message.reply_html(f"🕳️ <b>树洞模式</b>\n\n想对频道 @{channel} 的主人说什么呢？（发送文字消息即可，消息将会匿名发送）")
+    return await update.message.reply_html(f"🕳️ <b>树洞模式</b>\n\n想对频道 @{channel} 的主人说什么呢？"
+                                           f"（发送文字消息即可，消息将会匿名发送）")
 
 
 async def reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -232,7 +231,7 @@ async def reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_states[owner_id] = {"action": "reply", "sender_id": sender_id, "channel": channel}
     await query.answer()
-    await context.bot.send_message(
+    return await context.bot.send_message(
         chat_id=owner_id,
         text="💬 回复模式\n\n请输入你想回复的内容（发送文字消息即可）"
     )
@@ -258,9 +257,9 @@ async def block_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await query.answer("只有频道主人才能屏蔽哦~", show_alert=False)
 
     if db.block_user(sender_id, channel):
-        await query.answer("✅ 已屏蔽该发送者", show_alert=True)
+        return await query.answer("✅ 已屏蔽该发送者", show_alert=True)
     else:
-        await query.answer("该发送者已经被屏蔽了", show_alert=False)
+        return await query.answer("该发送者已经被屏蔽了", show_alert=False)
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -276,14 +275,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if state["action"] == "leaf":
         parent = state["parent"]
-        del user_states[user_id]
 
         channel = update.message.text.strip().strip("<>{} @")
         uid = user_id
 
-        # Validate channel name
+        # Validate channel name (keep state so user can retry)
         if not re.match(r"^[0-9a-zA-Z_]+$", channel):
-            return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，以及需要输入频道的 @用户名，不是显示名哦~")
+            return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，"
+                                                   "以及需要输入频道的 @用户名，不是显示名哦~")
 
         if db.channel_info(channel):
             return await update.message.reply_text(f"这个频道已经在树上了哦~ https://tree.aza.moe/c/{channel}")
@@ -293,7 +292,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check channel
         text = channel_html(channel)
         if 'noindex, nofollow' in text:
-            return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，以及需要输入频道的 @用户名，不是显示名哦~")
+            return await update.message.reply_text("没有找到这个频道... 只有公开的频道可以参与，"
+                                                   "以及需要输入频道的 @用户名，不是显示名哦~")
+
+        # Success paths — clear state
+        del user_states[user_id]
 
         info = utils.extract_meta_tags(text)
         if sha in text:
