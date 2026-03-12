@@ -310,8 +310,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                "（如果哪里不对的话，应该是 bot 重启了，重新点击按钮就好 ;-;）")
 
     if state["action"] == "leaf":
-        parent = state["parent"]
+        if not update.message.text:
+            return await update.message.reply_text("请发送频道的 @用户名哦~")
 
+        parent = state["parent"]
         channel = update.message.text.strip().strip("<>{} @")
         uid = user_id
 
@@ -399,14 +401,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             name = anon_name(user_id)
-            escaped_text = html.escape(update.message.text)
-            await context.bot.send_message(
-                chat_id=owner_id,
-                text=f"🕳️ <b>树洞消息</b>\n\n匿名{name}对你的频道 @{channel} 说：\n\n{escaped_text}",
-                reply_markup=reply_btn,
-                parse_mode="HTML"
-            )
-            await update.message.reply_text("✅ 消息已匿名发送~")
+            if update.message.sticker:
+                await context.bot.send_message(
+                    chat_id=owner_id,
+                    text=f"🕳️ <b>树洞消息</b>\n\n匿名{name}对你的频道 @{channel} 发了一张贴纸：",
+                    parse_mode="HTML"
+                )
+                await context.bot.send_sticker(
+                    chat_id=owner_id,
+                    sticker=update.message.sticker.file_id,
+                    reply_markup=reply_btn
+                )
+                await update.message.reply_text("✅ 贴纸已匿名发送~")
+            else:
+                escaped_text = html.escape(update.message.text or "")
+                await context.bot.send_message(
+                    chat_id=owner_id,
+                    text=f"🕳️ <b>树洞消息</b>\n\n匿名{name}对你的频道 @{channel} 说：\n\n{escaped_text}",
+                    reply_markup=reply_btn,
+                    parse_mode="HTML"
+                )
+                await update.message.reply_text("✅ 消息已匿名发送~")
         except Exception:
             await update.message.reply_text("发送失败了... 频道主人可能还没有启用 bot")
 
@@ -416,17 +431,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         set_state(user_id, None)
 
         try:
-            escaped_text = html.escape(update.message.text)
             reply_back_btn = InlineKeyboardMarkup([
                 [InlineKeyboardButton("💬 回复", url=f"https://t.me/{BOT_NAME}?start=th_{channel}")],
             ])
-            await context.bot.send_message(
-                chat_id=sender_id,
-                text=f"💬 <b>频道 @{channel} 的主人回复了你的树洞消息：</b>\n\n{escaped_text}",
-                reply_markup=reply_back_btn,
-                parse_mode="HTML"
-            )
-            await update.message.reply_text("✅ 回复已发送~")
+            if update.message.sticker:
+                await context.bot.send_message(
+                    chat_id=sender_id,
+                    text=f"💬 <b>频道 @{channel} 的主人回复了你的树洞消息：</b>",
+                    parse_mode="HTML"
+                )
+                await context.bot.send_sticker(
+                    chat_id=sender_id,
+                    sticker=update.message.sticker.file_id,
+                    reply_markup=reply_back_btn
+                )
+                await update.message.reply_text("✅ 回复已发送~")
+            else:
+                escaped_text = html.escape(update.message.text or "")
+                await context.bot.send_message(
+                    chat_id=sender_id,
+                    text=f"💬 <b>频道 @{channel} 的主人回复了你的树洞消息：</b>\n\n{escaped_text}",
+                    reply_markup=reply_back_btn,
+                    parse_mode="HTML"
+                )
+                await update.message.reply_text("✅ 回复已发送~")
         except Exception:
             await update.message.reply_text("回复发送失败了...")
 
@@ -502,7 +530,7 @@ bot.add_handler(CommandHandler("walkback", walkback))
 bot.add_handler(CallbackQueryHandler(verify_callback, pattern=r"^verify:"))
 bot.add_handler(CallbackQueryHandler(reply_callback, pattern=r"^reply:"))
 bot.add_handler(CallbackQueryHandler(block_callback, pattern=r"^block:"))
-bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+bot.add_handler(MessageHandler((filters.TEXT | filters.Sticker.ALL) & ~filters.COMMAND, handle_message))
 
 
 @app.on_event("startup")
