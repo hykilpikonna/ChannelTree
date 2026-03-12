@@ -142,7 +142,7 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         validating.add(sha)
     else:
         logger.info(f"> Channel not validated, asking again for validation.")
-        await update.message.reply_text("（看了一下好像频道信息还没有更新的样子... 确定加上了吗？再试试吧）")
+        return await update.message.reply_text("（看了一下好像频道信息还没有更新的样子... 确定加上了吗？再试试吧）")
 
 
 async def water_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -204,7 +204,8 @@ async def treehole_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         user_states[user_id] = {"action": "treehole", "channel": channel}
         await query.answer("请查看 bot 的私聊~", show_alert=False)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to send treehole message: {e}")
         await query.answer("请先私聊 bot 发送 /start 才能使用树洞功能哦~", show_alert=True)
 
 
