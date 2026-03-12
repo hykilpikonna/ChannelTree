@@ -42,8 +42,14 @@ class OwnerPref(BaseModel):
     treehole_notified = BooleanField(default=False)  # Whether the owner has been sent the intro notice
 
 
+class TreeholeMsg(BaseModel):
+    """Stores metadata for treehole messages so callback data doesn't expose user IDs."""
+    sender_id = BigIntegerField()  # The anonymous sender's Telegram user ID
+    channel = ForeignKeyField(Channel, backref='treehole_msgs', on_delete='CASCADE', field='username')
+
+
 with db:
-    db.create_tables([Channel, Vote, Block, OwnerPref])
+    db.create_tables([Channel, Vote, Block, OwnerPref, TreeholeMsg])
 
 
 def channel_info(username: str) -> Channel | None:
@@ -114,6 +120,20 @@ def is_blocked(user_id: int, channel_username: str) -> bool:
     return Block.select().where(
         (Block.user_id == user_id) & (Block.channel == channel_username)
     ).exists()
+
+
+def create_treehole_msg(sender_id: int, channel_username: str) -> int:
+    """Create a treehole message record and return its numeric ID."""
+    msg = TreeholeMsg.create(sender_id=sender_id, channel=channel_username)
+    return msg.id
+
+
+def get_treehole_msg(msg_id: int) -> TreeholeMsg | None:
+    """Look up a treehole message by its ID."""
+    try:
+        return TreeholeMsg.get_by_id(msg_id)
+    except TreeholeMsg.DoesNotExist:
+        return None
 
 
 def is_treehole_opted_out(owner_id: int) -> bool:

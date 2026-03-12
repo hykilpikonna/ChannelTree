@@ -236,13 +236,20 @@ async def reply_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
 
-    # Format: reply:{sender_id}:{channel}
     parts = data.split(":", 2)
-    if len(parts) != 3:
+
+    # New format: reply:{msg_id}
+    if len(parts) == 2:
+        msg = db.get_treehole_msg(int(parts[1]))
+        if not msg:
+            return await query.answer("这条消息已经过期了哦~", show_alert=False)
+        sender_id, channel = msg.sender_id, msg.channel_id
+    # Old format (backward compat): reply:{sender_id}:{channel}
+    elif len(parts) == 3:
+        sender_id, channel = int(parts[1]), parts[2]
+    else:
         return
 
-    _, sender_id_str, channel = parts
-    sender_id = int(sender_id_str)
     owner_id = query.from_user.id
 
     # Verify the person clicking is the channel owner
@@ -263,13 +270,20 @@ async def block_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
 
-    # Format: block:{sender_id}:{channel}
     parts = data.split(":", 2)
-    if len(parts) != 3:
+
+    # New format: block:{msg_id}
+    if len(parts) == 2:
+        msg = db.get_treehole_msg(int(parts[1]))
+        if not msg:
+            return await query.answer("这条消息已经过期了哦~", show_alert=False)
+        sender_id, channel = msg.sender_id, msg.channel_id
+    # Old format (backward compat): block:{sender_id}:{channel}
+    elif len(parts) == 3:
+        sender_id, channel = int(parts[1]), parts[2]
+    else:
         return
 
-    _, sender_id_str, channel = parts
-    sender_id = int(sender_id_str)
     owner_id = query.from_user.id
 
     # Verify the person clicking is the channel owner
@@ -377,9 +391,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
 
         # Send to owner anonymously
+        msg_id = db.create_treehole_msg(user_id, channel)
         reply_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 回复", callback_data=f"reply:{user_id}:{channel}")],
-            [InlineKeyboardButton("🚫 屏蔽发送者", callback_data=f"block:{user_id}:{channel}")],
+            [InlineKeyboardButton("💬 回复", callback_data=f"reply:{msg_id}")],
+            [InlineKeyboardButton("🚫 屏蔽发送者", callback_data=f"block:{msg_id}")],
         ])
 
         try:
@@ -402,9 +417,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             escaped_text = html.escape(update.message.text)
+            reply_back_btn = InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 回复", url=f"https://t.me/{BOT_NAME}?start=th_{channel}")],
+            ])
             await context.bot.send_message(
                 chat_id=sender_id,
                 text=f"💬 <b>频道 @{channel} 的主人回复了你的树洞消息：</b>\n\n{escaped_text}",
+                reply_markup=reply_back_btn,
                 parse_mode="HTML"
             )
             await update.message.reply_text("✅ 回复已发送~")
