@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 
-CONFIG = tomllib.loads((Path(__file__).parent / "config.toml").read_text())
+CONFIG = tomllib.loads((Path(__file__).parent.parent / "config.toml").read_text())
 
 
 def gen_sha(channel: str, uid: int, parent: str):
