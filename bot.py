@@ -174,10 +174,6 @@ async def treehole_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         remaining = int(TREEHOLE_COOLDOWN - (time.time() - last_time))
         return await query.answer(f"发送太频繁了，请 {remaining} 秒后再试~", show_alert=True)
 
-    # Check if blocked
-    if db.is_blocked(user_id, channel):
-        return await query.answer("你已经被这个频道的主人屏蔽了哦~", show_alert=True)
-
     # Check if channel has an owner
     owner_id = db.get_channel_owner(channel)
     if not owner_id:
@@ -265,10 +261,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Update rate limit
         treehole_rate_limit[user_id] = time.time()
 
+        # Shadowban: if blocked, pretend the message was sent
+        if db.is_blocked(user_id, channel):
+            logger.info(f"🕳️ Shadowbanned message from {user_id} for {channel}")
+            return await update.message.reply_text("✅ 消息已匿名发送~")
+
         # Get channel owner
         owner_id = db.get_channel_owner(channel)
         if not owner_id:
             return await update.message.reply_text("这个频道还没有设置主人哦~")
+
+        # If owner opted out, silently drop (shadowban style)
+        if db.is_treehole_opted_out(owner_id):
+            logger.info(f"🕳️ Owner {owner_id} opted out, dropping message from {user_id} for {channel}")
+            return await update.message.reply_text("✅ 消息已匿名发送~")
+
+        # Send first-time notice to owner if not yet notified
+        if not db.is_treehole_notified(owner_id):
+            db.set_treehole_notified(owner_id)
+            try:
+                await context.bot.send_message(
+                    chat_id=owner_id,
+                    text="树洞对面传来消息了！（其实是匿名消息功能啦）\n\n如果不想要听到树洞消息的话可以说 /walkaway"
+                )
+            except Exception:
+                pass
 
         # Send to owner anonymously
         reply_btn = InlineKeyboardMarkup([
@@ -301,9 +318,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("回复发送失败了...")
 
 
+async def walkaway(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /walkaway — owner opts out of tree hole messages."""
+    if update.message.chat.type != "private":
+        return
+
+    uid = update.message.from_user.id
+    logger.info(f"/walkaway from {user_info(update)}")
+
+    db.set_treehole_optout(uid, True)
+    await update.message.reply_text("你离开了树洞！如果想重新开始收到树洞消息的话请说 /walkback")
+
+
+async def walkback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /walkback — owner opts back in to tree hole messages."""
+    if update.message.chat.type != "private":
+        return
+
+    uid = update.message.from_user.id
+    logger.info(f"/walkback from {user_info(update)}")
+
+    db.set_treehole_optout(uid, False)
+    await update.message.reply_text("欢迎回到树洞！你现在可以重新收到树洞消息了~")
+
+
 # Add handlers
 bot.add_handler(CommandHandler("start", start))
 bot.add_handler(CommandHandler("leaf", plant))
+bot.add_handler(CommandHandler("walkaway", walkaway))
+bot.add_handler(CommandHandler("walkback", walkback))
 bot.add_handler(CallbackQueryHandler(water_callback, pattern=r"^water:"))
 bot.add_handler(CallbackQueryHandler(treehole_callback, pattern=r"^th:"))
 bot.add_handler(CallbackQueryHandler(reply_callback, pattern=r"^reply:"))
