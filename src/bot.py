@@ -352,7 +352,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 不过上树之前，为了防止被滥用，需要先验证一下你是 {channel} 的管理员...
 
-请编辑频道简介加入验证码 <code>{sha}</code> 再点击下面的「添加好了」吧~（加在哪里都可以的 > < 验证完就可以删掉）
+请编辑频道简介加入验证码 <code>{sha}</code> 再点击下面的「添加好了」吧~（加在哪里都可以的 &gt; &lt; 验证完就可以删掉）
 """.strip(), reply_markup=verify_btn, parse_mode="HTML")
         validating.add(sha)
 
