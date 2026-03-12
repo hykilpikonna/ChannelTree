@@ -75,6 +75,56 @@ def channel_html(channel: str):
     return t
 
 
+def channel_buttons(channel: str) -> InlineKeyboardMarkup:
+    """Build the inline keyboard buttons for a channel post."""
+    leaf_text = urllib.parse.quote(f"/leaf {channel} ")
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🌿 成为树叶", url=f"https://t.me/{BOT_NAME}?text={leaf_text}")],
+        [InlineKeyboardButton("💧 浇水", callback_data=f"water:{channel}")],
+        [InlineKeyboardButton("🕳️ 树洞", callback_data=f"th:{channel}")],
+    ])
+
+
+def shareable_message(channel: str, title: str, description: str) -> str:
+    """Build the shareable HTML message for a channel post."""
+    url_enc = urllib.parse.quote_plus(f"https://tree.aza.moe/c/{channel}")
+    return f"""
+又是一年一度的植树节了！想和大家一起再种一颗 tgcn 频道树 🌳 qwq （还有树洞功能可以玩哦~）
+
+这里是 {title}，{description}
+
+（如果你也有公开频道，想成为这个频道的树叶的话，就点击下面的「成为树叶」吧！ &gt; &lt;） <a href="https://t.me/iv?url={url_enc}&rhash=d96b84e483dc30">\u200e</a>
+""".strip()
+
+
+async def init(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /init — create the root channel of the tree (password-protected)."""
+    if update.message.chat.type != "private":
+        return
+
+    logger.info(f"/init from {user_info(update)}")
+
+    args, uid = context.args, update.message.from_user.id
+    if len(args) != 2:
+        return await update.message.reply_text("用法是 /init <密码> <根频道名> 哦~")
+
+    password, channel = args
+    channel = channel.strip("<>{} @")
+
+    if password != CONFIG.get("init-password", ""):
+        return await update.message.reply_text("密码不对哦~")
+
+    info = utils.extract_meta_tags(channel_html(channel))
+
+    logger.info(f"> 🌳 Initializing root channel {channel}.")
+    db.register(channel, info.title, owner_id=uid)
+
+    await update.message.reply_text(f"🌳 根频道 @{channel} 创建成功！把下面这条转发到频道里吧~")
+    return await update.message.reply_html(
+        shareable_message(channel, info.title, "是频道树的树根 🌳"),
+        reply_markup=channel_buttons(channel))
+
+
 async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.chat.type != "private":
         return
@@ -115,20 +165,9 @@ async def plant(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"> 🌿 Registering channel {channel} with parent {parent}.")
         height = db.register(channel, info.title, parent, owner_id=uid)
         await update.message.reply_text(f"""频道 {channel} 上树成功！把下面这条转发到频道里吧~""".strip())
-        url_enc = urllib.parse.quote_plus(f"https://tree.aza.moe/c/{channel}")
-        leaf_text = urllib.parse.quote(f"/leaf {channel} ")
-        leaf_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🌿 成为树叶", url=f"https://t.me/{BOT_NAME}?text={leaf_text}")],
-            [InlineKeyboardButton("💧 浇水", callback_data=f"water:{channel}")],
-            [InlineKeyboardButton("🕳️ 树洞", callback_data=f"th:{channel}")],
-        ])
-        return await update.message.reply_html(f"""
-又是一年一度的植树节了！想和大家一起再种一颗 tgcn 频道树 🌳 qwq （还有树洞功能可以玩哦~）
-
-这里是 {info.title}，是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~
-
-（如果你也有公开频道，想成为这个频道的树叶的话，就点击下面的「成为树叶」吧！ &gt; &lt;） <a href="https://t.me/iv?url={url_enc}&rhash=d96b84e483dc30">\u200e</a>
-""".strip(), reply_markup=leaf_btn)
+        return await update.message.reply_html(
+            shareable_message(channel, info.title, f"是 @{parent} 的树枝 🌿 在频道树的第 {height + 1} 层~"),
+            reply_markup=channel_buttons(channel))
 
     if sha not in validating:
         logger.info(f"> Channel not validated, asking for validation.")
@@ -363,6 +402,7 @@ async def walkback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Add handlers
 bot.add_handler(CommandHandler("start", start))
+bot.add_handler(CommandHandler("init", init))
 bot.add_handler(CommandHandler("leaf", plant))
 bot.add_handler(CommandHandler("walkaway", walkaway))
 bot.add_handler(CommandHandler("walkback", walkback))
