@@ -58,6 +58,10 @@ user_states: dict[int, dict] = load_states()
 treehole_rate_limit: dict[int, float] = {}
 TREEHOLE_COOLDOWN = 30  # seconds
 
+END_OF_ARBOR_DAY = 1773392400  # 2026-03-13 00:00:00 UTC-9
+EVENT_ENDED_MSG = "植树节活动结束了哦！所以不能成为树叶了，不过树洞和浇水功能大概会继续开放哦！（以及可以期待一下一天之后 @azaneko 频道里的总结！）"
+EVENT_ENDED_SHORT_MSG = "植树节活动结束了哦！所以不能成为树叶了"
+
 # Animal emojis for anonymous tree hole identities
 ANIMAL_EMOJIS = [
     "🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯",
@@ -174,6 +178,9 @@ async def plant(update: Update):
 async def handle_leaf(update: Update, user_id: int, parent: str):
     """Handle the 成为树叶 action via deep-link — ask for the user's channel name."""
     logger.info(f"🌿 Leaf request from {user_id} for parent {parent}")
+
+    if time.time() > END_OF_ARBOR_DAY:
+        return await update.message.reply_text(EVENT_ENDED_MSG)
 
     if not db.channel_info(parent):
         return await update.message.reply_text("上级频道还不在树上... 是不是打错了 qwq")
@@ -310,6 +317,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                "（如果哪里不对的话，应该是 bot 重启了，重新点击按钮就好 ;-;）")
 
     if state["action"] == "leaf":
+        if time.time() > END_OF_ARBOR_DAY:
+            set_state(user_id, None)
+            return await update.message.reply_text(EVENT_ENDED_MSG)
         if not update.message.text:
             return await update.message.reply_text("请发送频道的 @用户名哦~")
 
@@ -487,6 +497,9 @@ async def verify_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle the 添加好了 button — re-check verification code."""
     query = update.callback_query
     data = query.data
+
+    if time.time() > END_OF_ARBOR_DAY:
+        return await query.answer(EVENT_ENDED_SHORT_MSG, show_alert=True)
 
     # Format: verify:{channel}:{parent}
     parts = data.split(":", 2)
