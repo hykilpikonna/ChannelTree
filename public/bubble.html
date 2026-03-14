@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <style> body { margin: 0; font-family: sans-serif; } </style>
+  <script src="//d3js.org/d3.v7.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/force-graph"></script>
+  <style>
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="controls">
+    <label for="sizeMetric"><strong>尺寸</strong></label>
+    <select id="sizeMetric">
+      <option value="subscribers">订阅数</option>
+      <option value="waters">浇水数</option>
+    </select>
+  </div>
+
+  <div id="graph"></div>
+
+  <script>
+    fetch('/api/graph_data').then(res => res.json()).then(data => {
+      const elem = document.getElementById('graph');
+      const selectEl = document.getElementById('sizeMetric');
+      
+      let metric = selectEl.value;
+      // Calculate a robust maximum by using the 95th percentile
+      // so extreme outliers don't crush the scale for everyone else.
+      const calcMax = () => {
+        let values = data.nodes.map(n => n[metric] || 0).sort((a, b) => a - b);
+        if (values.length === 0) return 1;
+        // Take the 95th percentile value as our "max" scale reference
+        let idx = Math.floor(values.length * 0.95);
+        if (idx >= values.length) idx = values.length - 1;
+        return Math.max(1, values[idx]);
+      };
+      
+      let maxVal = calcMax();
+
+      const calcRadius = (node) => {
+        const val = node[metric] || 0;
+        const minSize = 5;
+        const maxSize = 50; // Maximum added size
+        let factor = 0;
+        
+        if (maxVal > 0) {
+          const clampedVal = Math.min(val, maxVal);
+          if (metric === 'subscribers') {
+            factor = Math.sqrt(clampedVal / maxVal);
+          } else {
+            factor = clampedVal / maxVal; // Linear scaling for water count
+          }
+        }
+        
+        return minSize + factor * maxSize;
+      };
+
+      const maxLayer = Math.max(1, ...data.nodes.map(n => n.height || 0));
+      const colorScale = d3.scaleLinear()
+        .domain([0, 1, 2, 3])
+        .range(['#FFCB3E', '#FB836F', '#C1549C', '#7E549F']);
+
+      const Graph = new ForceGraph(elem)
+        .backgroundColor('#101020')
+        .nodeColor(node => colorScale(node.height || 0))
+        // Hover tooltip
+        .nodeLabel(node => `${node.name} (@${node.id})<br>Subs: ${node.subscribers}<br>Waters: ${node.waters}`)
+        .linkColor(() => 'rgba(255,255,255,0.2)')
+        .linkDirectionalParticles(1)
+        .onNodeClick(node => window.open(`https://t.me/${node.id}`, '_blank'))
+        .nodeCanvasObject((node, ctx, globalScale) => {
+          // Calculate radius
+          const radius = calcRadius(node);
+          
+          // Draw Circle
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+          ctx.fillStyle = node.color || colorScale(node.height || 0);
+          ctx.fill();
+          
+          // Stroke
+          ctx.lineWidth = 1 / globalScale;
+          ctx.strokeStyle = '#222';
+          ctx.stroke();
+
+          // Decode HTML entities and Cache
+          let label = node._decodedName;
+          if (!label) {
+              const txt = document.createElement("textarea");
+              txt.innerHTML = node.name;
+              label = txt.value;
+              node._decodedName = label;
+          }
+          
+          // Wrapping support + Caching based purely on aspect-ratio proportions
+          if (!node._lines || node._lastRadius !== radius) {
+             let lines = [];
+             
+             // Target characters per line for a properly proportioned text block
+             let targetCols = Math.max(1, Math.ceil(Math.sqrt(label.length * 1.5)));
+             let words = label.split(' ');
+             
+             if (words.length === 1 && label.length > 5) {
+                 // No spaces (like CJK), just chunk text by block length
+                 for (let i = 0; i < label.length; i += targetCols) {
+                     lines.push(label.substring(i, i + targetCols));
+                 }
+             } else {
+                 // Words/Spaces present, pack intelligently
+                 let currentLine = '';
+                 words.forEach((word) => {
+                     if (currentLine && (currentLine + word).length > targetCols) {
+                         lines.push(currentLine.trim());
+                         currentLine = word + ' ';
+                     } else {
+                         currentLine += word + ' ';
+                     }
+                 });
+                 if (currentLine) lines.push(currentLine.trim());
+             }
+
+             // Calculate initial purely height-based font size
+             let numLines = lines.length;
+             let availableWidth = radius * 1.5;
+             let availableHeight = radius * 1.3;
+             
+             let fSize = availableHeight / (numLines * 1.15);
+             if (fSize > radius * 0.45) fSize = radius * 0.45;
+             
+             // Setup canvas to measure ACTUAL pixel width, handling wide CJK characters accurately
+             ctx.font = `bold ${fSize}px Sans-Serif`;
+             let maxLineWidth = 0;
+             lines.forEach(line => {
+                 let w = ctx.measureText(line).width;
+                 if (w > maxLineWidth) maxLineWidth = w;
+             });
+             
+             // If the physical render width is still too large, crush the font size down proportionally
+             if (maxLineWidth > availableWidth) {
+                 fSize *= availableWidth / maxLineWidth;
+             }
+             
+             node._lines = lines;
+             node._fontSize = fSize;
+             node._lastRadius = radius;
+          }
+
+          // Anti-Jitter / Anti-Blurry Emoji Optimization:
+          // The browser natively rasterizes emoji images based on the nominal font size string (e.g. 10px).
+          // If we allow the canvas scale() property to blow up a 10px emoji, it becomes extremely blurry 
+          // and its sub-pixels jitter across frames. We fix this by multiplying the nominal font size
+          // up to 1:1 monitor pixels, and then mathematically undoing the canvas transform.
+          const fSizeGlobal = node._fontSize * globalScale;
+          ctx.font = `bold ${fSizeGlobal}px Sans-Serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#fff';
+          
+          ctx.save();
+          // Move 0,0 to circle center natively
+          ctx.translate(node.x, node.y);
+          // Revert Canvas zoom multiplier so 1 drawing unit roughly equals 1 screen pixel
+          ctx.scale(1 / globalScale, 1 / globalScale);
+          
+          const lineHeight = fSizeGlobal * 1.15;
+          const startY = -((node._lines.length - 1) * lineHeight) / 2;
+          
+          node._lines.forEach((line, i) => {
+              // Snap to whole pixels to prevent sub-pixel antialiasing flicker
+              ctx.fillText(line, 0, Math.round(startY + i * lineHeight));
+          });
+          ctx.restore();
+        })
+        // Add collision force to prevent overlap
+        .d3Force('collide', d3.forceCollide(node => calcRadius(node) + 1))
+        // Increase repulsion so they spread out like a radial network
+        .d3Force('charge', d3.forceManyBody().strength(-150))
+        .graphData(data);
+
+      // Re-render when dropdown changes
+      selectEl.addEventListener('change', (e) => {
+        metric = e.target.value;
+        maxVal = calcMax();
+        
+        // Update collision force radiuses
+        Graph.d3Force('collide', d3.forceCollide(node => calcRadius(node) + 1));
+        
+        // Re-heat simulation to spread out
+        Graph.numDimensions(2); // Triggers re-render
+        Graph.d3ReheatSimulation();
+      });
+    });
+  </script>
+</body>
+</html>

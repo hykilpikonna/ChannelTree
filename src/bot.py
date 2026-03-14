@@ -586,6 +586,42 @@ def api_tree():
     return tree_to_dict("azaneko")
 
 
+@app.get("/api/graph_data")
+def api_graph_data():
+    nodes = []
+    links = []
+
+    r_chan = re.compile(r"([\d ]+) subscribers")
+    r_grp = re.compile(r"([\d ]+) members")
+
+    for entity in db.Channel.select().where(db.Channel.hidden == False):
+        html_t = channel_html(entity.username)
+        
+        subs = 0
+        if m1 := r_chan.search(html_t):
+            subs = int(m1.group(1).replace(" ", ""))
+        elif m2 := r_grp.search(html_t):
+            subs = int(m2.group(1).replace(" ", ""))
+        
+        waters = db.get_votes(entity.username)
+
+        nodes.append({
+            "id": entity.username,
+            "name": entity.name,
+            "subscribers": subs,
+            "waters": waters,
+            "height": entity.height
+        })
+
+        if entity.parent_id:
+            links.append({
+                "source": entity.parent_id,
+                "target": entity.username
+            })
+            
+    return {"nodes": nodes, "links": links}
+
+
 @app.get("/api/admin/channels")
 def api_admin_channels(x_admin_password: str = Header(None)):
     if x_admin_password not in CONFIG.get("admin-passwords", [CONFIG.get("init-password")]):
