@@ -8,6 +8,9 @@ WORKDIR /app
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
 
+# Install system dependencies required for psycopg2
+RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+
 # Copy project requirements
 COPY pyproject.toml uv.lock ./
 
