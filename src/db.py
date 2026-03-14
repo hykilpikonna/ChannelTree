@@ -1,10 +1,15 @@
 from peewee import Model, CharField, ForeignKeyField, IntegerField, BigIntegerField, BooleanField, CompositeKey, PostgresqlDatabase
+from playhouse.db_url import connect
 
 from utils import CONFIG
 
-# Database configuration
-db = PostgresqlDatabase('tgtree', user='cat',
-                        password=CONFIG["db-pass"], host=CONFIG["db-host"], port=CONFIG["db-port"])
+import os
+
+# Default local connection string based on config.toml (if any)
+default_db_url = CONFIG.get("db-url", "postgresql://cat:meow@127.0.0.1:5444/tgtree")
+db_url = os.environ.get("DATABASE_URL", default_db_url)
+
+db = connect(db_url)
 
 
 class BaseModel(Model):

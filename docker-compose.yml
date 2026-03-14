@@ -1,4 +1,30 @@
 services:
+  bot:
+    build: .
+    container_name: tgtree-bot
+    restart: unless-stopped
+    command: ["uv", "run", "python", "src/bot.py"]
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://cat:meow@postgres:5432/tgtree
+    ports:
+      - "127.0.0.1:9498:9498"
+    volumes:
+      - .:/app
+
+  gentree:
+    build: .
+    container_name: tgtree-gentree
+    restart: unless-stopped
+    command: ["uv", "run", "python", "src/gentree.py"]
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://cat:meow@postgres:5432/tgtree
+    volumes:
+      - .:/app
+
   postgres:
     image: postgres:latest
     container_name: tgtree-db
