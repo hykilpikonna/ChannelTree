@@ -109,3 +109,10 @@
 9. Renna42: 2490 (7.395%)
 10. ilharper: 2283 (6.781%)
 ```
+
+## 泡泡可视化
+
+做了一个泡泡图！可以去 https://tree.aza.moe/bubble.html 看哦~
+
+![泡泡可视化](docs/bubble.png)
+
