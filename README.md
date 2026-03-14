@@ -3,6 +3,8 @@
 
 # TGCN 频道树
 
+## 2026
+
 这是 2026 年植树节的时候在 telegram 上和大家一起再次种下的频道树 qwq
 
 活动结束的时候树上有 262 个频道（比去年多了 48 个！）
@@ -12,7 +14,7 @@
 今年添加了浇水（投票）和树洞（匿名消息）的功能！...可惜似乎没有很多人用呢，总共只传递了 55 条树洞消息。
 不过浇水和树洞在植树节结束之后也会继续开放哦！
 
-可以在 https://tree.aza.moe 查看最终的完整频道树，或者去 https://tree.aza.moe/bubble.html 看泡泡图，或者从[树根](https://tree.aza.moe/c/hykilp)开始跟随树杈🔗探索频道树。
+可以在 [tree.aza.moe](https://tree.aza.moe) 查看最终的完整频道树，或者去[这里](https://tree.aza.moe/bubble.html)看泡泡图，或者从[树根](https://tree.aza.moe/c/hykilp)开始跟随树杈🔗探索频道树。
 
 这个仓库里是「🌲TGCN 植树机器人🌲」和网页服务器的源码，以及频道树的数据备份。
 
