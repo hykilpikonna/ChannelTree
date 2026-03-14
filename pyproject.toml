@@ -13,5 +13,6 @@ dependencies = [
     "python-telegram-bot>=22.6",
     "requests>=2.32.5",
     "starlette>=0.52.1",
+    "tqdm>=4.67.3",
     "uvicorn>=0.41.0",
 ]
